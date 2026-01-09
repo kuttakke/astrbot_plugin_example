@@ -1,0 +1,11 @@
+[project]
+name = "astrbot-plugin-example"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "astrbot>=4.11.2",
+    "msgpack>=1.1.2",
+    "pydantic>=2.10.6",
+]
