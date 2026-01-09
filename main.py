@@ -2,7 +2,7 @@ from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star, register
 
-from rpc_client import Client
+from .rpc_client import Client
 
 
 @register("插件测试", "kutake", "测试插件", "1.0.0")
