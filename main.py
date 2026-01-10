@@ -26,7 +26,7 @@ class MyPlugin(Star):
         logger.info(message_chain)
 
         client = Client()
-        response = await client.call_method("test", {"name": "test"}, "test")
+        response = await client.call_method("test_function", {"value": 2}, "test")
         logger.info(response)
 
         yield event.plain_result(
