@@ -72,17 +72,10 @@ class RPCClient:
         self._pending: dict[int, asyncio.Future] = {}
 
         self._reader_task: asyncio.Task | None = None
-        self._last_connect_attempt: float = 0.0
 
     async def connect(self):
         if self._reader is not None:
             return
-
-        now = asyncio.get_running_loop().time()
-        if now - self._last_connect_attempt < 5:
-            raise RuntimeError("RPC server unavailable")
-
-        self._last_connect_attempt = now
 
         self._reader, self._writer = await asyncio.open_unix_connection(  # type: ignore
             self.socket_path
