@@ -137,7 +137,7 @@ class RPCClient:
                     unified_msg_origin=unified_msg_origin,
                     resp_model=resp_model,
                 )
-            except (BrokenPipeError, RuntimeError) as e:
+            except (BrokenPipeError, RuntimeError, ConnectionRefusedError) as e:
                 logger.error(f"RPC server error: {e}")
                 self._reset_connection(e)
 
