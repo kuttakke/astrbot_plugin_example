@@ -34,7 +34,7 @@ class CallParameters(BaseModel):
     module_id: str = Field(..., description="模块 ID")
     unified_msg_origin: str = Field(..., description="会话的唯一 ID 标识符")
     method: str = Field(..., description="要调用的方法名称")
-    params: BaseParameters = Field(..., description="方法调用的参数")
+    params: dict = Field(..., description="方法调用的参数")
 
 
 class BaseResponse(BaseModel):
@@ -167,7 +167,7 @@ class RPCClient:
         req = CallParameters(
             module_id=module_id,
             method=method,
-            params=params,
+            params=params.model_dump(),
             unified_msg_origin=unified_msg_origin,
         )
 
