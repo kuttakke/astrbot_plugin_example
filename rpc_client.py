@@ -8,6 +8,9 @@ from astrbot.api import logger
 from pydantic import BaseModel, Field
 
 
+class ResponseError(BaseException): ...
+
+
 class BaseParameters(BaseModel):
     """基础参数模型.
 
@@ -182,7 +185,7 @@ class RPCClient:
 
         resp = CallResponse(**data)
         if not resp.ok:
-            raise RuntimeError(resp.error_message)
+            raise ResponseError(resp.error_message)
 
         return resp_model.model_validate(resp.data)
 
@@ -194,5 +197,4 @@ def get_rpc_client(socket_path: Path = Path("/run/logic/logic.sock")) -> RPCClie
     global __rpc_client_instance
     if __rpc_client_instance is None:
         __rpc_client_instance = RPCClient(socket_path)
-    return __rpc_client_instance
     return __rpc_client_instance
