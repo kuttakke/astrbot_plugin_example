@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TypeVar
 
 import msgpack
+from astrbot.api import logger
 from pydantic import BaseModel, Field
 
 
@@ -135,7 +136,9 @@ class RPCClient:
                     resp_model=resp_model,
                 )
             except (BrokenPipeError, RuntimeError) as e:
+                logger.error(f"RPC server error: {e}")
                 self._reset_connection(e)
+
                 if attempt == 2:
                     raise e
                 await asyncio.sleep(5)
@@ -191,4 +194,5 @@ def get_rpc_client(socket_path: Path = Path("/run/logic/logic.sock")) -> RPCClie
     global __rpc_client_instance
     if __rpc_client_instance is None:
         __rpc_client_instance = RPCClient(socket_path)
+    return __rpc_client_instance
     return __rpc_client_instance
