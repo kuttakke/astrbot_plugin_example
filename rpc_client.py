@@ -7,8 +7,7 @@ import msgpack
 from astrbot.api import logger
 from pydantic import BaseModel, Field
 
-
-class ResponseError(BaseException): ...
+# class ResponseError(BaseException): ...
 
 
 class BaseParameters(BaseModel):
@@ -184,8 +183,9 @@ class RPCClient:
         data = await future
 
         resp = CallResponse(**data)
-        if not resp.ok:
-            raise ResponseError(resp.error_message)
+        # 不处理错误，具体错误由调用方处理
+        # if not resp.ok:
+        #     raise ResponseError(resp.error_message)
 
         return resp_model.model_validate(resp.data)
 
