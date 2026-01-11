@@ -145,6 +145,7 @@ class RPCClient:
                 self._reset_connection(e)
                 if attempt == 2:
                     raise e
+                await asyncio.sleep(5)
         raise RuntimeError("RPC server unavailable")
 
     async def _call_once(
