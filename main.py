@@ -2,7 +2,7 @@ from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star, register
 
-from .rpc_client import Client
+from .api import Testmodule, TestParameters
 
 
 @register("插件测试", "kutake", "测试插件", "1.0.0")
@@ -25,8 +25,16 @@ class MyPlugin(Star):
         )  # 用户所发的消息的消息链 # from astrbot.api.message_components import *
         logger.info(message_chain)
 
-        client = Client()
-        response = await client.call_method("test_function", {"value": 2}, "test")
+        response = await Testmodule.test_function2(
+            params=TestParameters(value=42),
+            event=event,
+        )
+        logger.info(response)
+
+        response = await Testmodule.test_function(
+            params=TestParameters(value=123),
+            event=event,
+        )
         logger.info(response)
 
         yield event.plain_result(
