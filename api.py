@@ -1,6 +1,6 @@
 from astrbot.api.event import AstrMessageEvent
 
-from .rpc_client import BaseParameters, BaseResponse, get_rpc_client
+from .rpc_client import BaseParameters, BaseResponse, CallResponse, get_rpc_client
 
 
 # ------------------- TestModule -------------------
@@ -18,7 +18,7 @@ class Testmodule:
     @classmethod
     async def test_function(
         cls, params: TestParameters, *, event: AstrMessageEvent
-    ) -> TestResponse:
+    ) -> CallResponse[TestResponse]:
         client = get_rpc_client()
         return await client.call(
             module_id=cls.module_id,
@@ -31,7 +31,7 @@ class Testmodule:
     @classmethod
     async def test_function2(
         cls, params: TestParameters, *, event: AstrMessageEvent
-    ) -> TestResponse:
+    ) -> CallResponse[TestResponse]:
         client = get_rpc_client()
         return await client.call(
             module_id=cls.module_id,

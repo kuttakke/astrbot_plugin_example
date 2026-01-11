@@ -1,7 +1,7 @@
 import asyncio
 import contextlib
 from pathlib import Path
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 import msgpack
 from astrbot.api import logger
@@ -47,7 +47,7 @@ class BaseResponse(BaseModel):
 TResponse = TypeVar("TResponse", bound=BaseResponse)
 
 
-class CallResponse(BaseModel):
+class CallResponse(BaseModel, Generic[TResponse]):
     """RPC 调用响应模型.
 
     Attributes:
@@ -59,7 +59,7 @@ class CallResponse(BaseModel):
 
     ok: bool = Field(..., description="操作是否成功")
     unified_msg_origin: str = Field(..., description="会话的唯一 ID 标识符")
-    data: BaseResponse | None = Field(..., description="方法调用返回的数据")
+    data: TResponse | None = Field(..., description="方法调用返回的数据")
     error_message: str = Field(..., description="错误信息，如果有的话")
 
 
@@ -126,7 +126,7 @@ class RPCClient:
         params: BaseParameters,
         unified_msg_origin: str,
         resp_model: type[TResponse],
-    ) -> TResponse:
+    ) -> CallResponse[TResponse]:
         for attempt in (1, 2):
             try:
                 await self.connect()
@@ -154,7 +154,7 @@ class RPCClient:
         params: BaseParameters,
         unified_msg_origin: str,
         resp_model: type[TResponse],
-    ) -> TResponse:
+    ) -> CallResponse[TResponse]:
         await self.connect()
 
         self._req_id += 1
@@ -182,12 +182,7 @@ class RPCClient:
 
         data = await future
 
-        resp = CallResponse(**data)
-        # 不处理错误，具体错误由调用方处理
-        # if not resp.ok:
-        #     raise ResponseError(resp.error_message)
-
-        return resp_model.model_validate(resp.data)
+        return CallResponse(**data)
 
 
 __rpc_client_instance: RPCClient | None = None
