@@ -182,7 +182,7 @@ class RPCClient:
 
         data = await future
 
-        return CallResponse(**data)
+        return CallResponse[resp_model](**data)
 
 
 __rpc_client_instance: RPCClient | None = None
