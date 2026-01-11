@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from pathlib import Path
 from typing import TypeVar
 
@@ -63,6 +64,64 @@ class RPCClient:
     def __init__(self, socket_path: Path = Path("/run/logic/logic.sock")):
         self.socket_path = socket_path
 
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
+
+        self._req_id: int = 0
+        self._write_lock = asyncio.Lock()
+        self._pending: dict[int, asyncio.Future] = {}
+
+        self._reader_task: asyncio.Task | None = None
+        self._last_connect_attempt: float = 0.0
+
+    async def connect(self):
+        if self._reader is not None:
+            return
+
+        now = asyncio.get_running_loop().time()
+        if now - self._last_connect_attempt < 5:
+            raise RuntimeError("RPC server unavailable")
+
+        self._last_connect_attempt = now
+
+        self._reader, self._writer = await asyncio.open_unix_connection(  # type: ignore
+            self.socket_path
+        )
+        self._reader_task = asyncio.create_task(self._read_loop())
+
+    def _reset_connection(self, exc: Exception | None = None):
+        if self._writer:
+            with contextlib.suppress(Exception):
+                self._writer.close()
+        for fut in self._pending.values():
+            if not fut.done():
+                fut.set_exception(exc or RuntimeError("connection reset"))
+
+        self._pending.clear()
+        self._reader = None
+        self._writer = None
+        self._reader_task = None
+
+    async def _read_loop(self):
+        reader = self._reader
+        assert reader is not None
+
+        try:
+            while True:
+                req_id = int.from_bytes(await reader.readexactly(4), "big")
+                size = int.from_bytes(await reader.readexactly(4), "big")
+                data = msgpack.unpackb(
+                    await reader.readexactly(size),
+                    raw=False,
+                )
+
+                fut = self._pending.pop(req_id, None)
+                if fut and not fut.done():
+                    fut.set_result(data)
+
+        except asyncio.IncompleteReadError as e:
+            self._reset_connection(e)
+
     async def call(
         self,
         *,
@@ -72,7 +131,39 @@ class RPCClient:
         unified_msg_origin: str,
         resp_model: type[TResponse],
     ) -> TResponse:
-        reader, writer = await asyncio.open_unix_connection(self.socket_path)  # type: ignore
+        for attempt in (1, 2):
+            try:
+                await self.connect()
+                return await self._call_once(
+                    module_id=module_id,
+                    method=method,
+                    params=params,
+                    unified_msg_origin=unified_msg_origin,
+                    resp_model=resp_model,
+                )
+            except (BrokenPipeError, RuntimeError) as e:
+                self._reset_connection(e)
+                if attempt == 2:
+                    raise e
+        raise RuntimeError("RPC server unavailable")
+
+    async def _call_once(
+        self,
+        *,
+        module_id: str,
+        method: str,
+        params: BaseParameters,
+        unified_msg_origin: str,
+        resp_model: type[TResponse],
+    ) -> TResponse:
+        await self.connect()
+
+        self._req_id += 1
+        req_id = self._req_id
+
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        self._pending[req_id] = future
 
         req = CallParameters(
             module_id=module_id,
@@ -81,18 +172,18 @@ class RPCClient:
             unified_msg_origin=unified_msg_origin,
         )
 
-        packed = msgpack.packb(req.model_dump(), use_bin_type=True)
-        writer.write(len(packed).to_bytes(4, "big"))  # type: ignore
-        writer.write(packed)
-        await writer.drain()
+        payload = msgpack.packb(req.model_dump(), use_bin_type=True)
 
-        size = int.from_bytes(await reader.readexactly(4), "big")
-        data = msgpack.unpackb(await reader.readexactly(size), raw=False)
+        async with self._write_lock:
+            assert self._writer is not None
+            self._writer.write(req_id.to_bytes(4, "big"))
+            self._writer.write(len(payload).to_bytes(4, "big"))  # type: ignore
+            self._writer.write(payload)  # type: ignore
+            await self._writer.drain()
+
+        data = await future
 
         resp = CallResponse(**data)
-        writer.close()
-        await writer.wait_closed()
-
         if not resp.ok:
             raise RuntimeError(resp.error_message)
 
